@@ -1,0 +1,71 @@
+#!/bin/bash
+
+#$ -S /bin/bash
+#$ -pe smp 6
+#$ -l tmem=20G
+#$ -l h_vmem=20G
+#$ -l h_rt=12:00:00
+#$ -l tscratch=20G
+#$ -N RNA-Seq_unstranded
+#$ -cwd
+
+source /share/apps/source_files/python/python-3.6.4.source
+export PATH=/share/apps/jdk-15.0.2/bin:$PATH
+export PATH=/share/apps/genomics/nextflow-local-22.10.0:$PATH
+export PATH=/share/apps/genomics/FastQC-0.11.8:$PATH
+export PATH=/share/apps/genomics/seqtk:$PATH
+export PATH=/share/apps/genomics/cutadapt-2.5/bin:$PATH
+export PATH=/share/apps/genomics/bowtie2-2.4.1:$PATH
+export PATH=/share/apps/genomics/STAR-2.7.9a/bin/Linux_x86_64:$PATH
+export PATH=/share/apps/genomics/samtools-1.9/bin:$PATH
+export PATH=/share/apps/genomics/RSEM-1.3.3:$PATH
+export JAVA_HOME=''
+
+
+echo ${JOB_NAME} "for "${sample}
+echo "=========="
+echo ""
+echo "Job "${JOB_ID} "starts "$(date)" on "$(hostname)
+echo ""
+##########
+
+
+
+echo "#####"
+echo "Running RNA-Seq (unstranded) for "${sample}
+echo "#####"
+
+
+mkdir -p /scratch0/${SGE_O_LOGNAME}/${JOB_ID}
+
+nextflow run RNA-Seq_unstranded.nf --logname ${SGE_O_LOGNAME} \
+	--jobID ${JOB_ID} \
+	--sample ${sample} \
+	--read1 ${SGE_O_WORKDIR}/RAW/"${sample}"_R1_001.fastq.gz \
+	--read2 ${SGE_O_WORKDIR}/RAW/"${sample}"_R2_001.fastq.gz \
+	--transcriptome /SAN/colcc/cellranger_references/GRCh38/STAR-2.7.9a/101bp \
+	--GTF /SAN/colcc/cellranger_references/refdata-gex-GRCh38-2020-A/genes/genes.gtf \
+	--fiveprime AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
+	--threeprime AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
+	--cutadapt_outdir ${SGE_O_WORKDIR}/inter_cutadapt/"${sample}" \
+	--bowtie2_ref /SAN/colcc/cellranger_references/rRNA/human/bowtie2-2.4.1/human_rRNA \
+	--bowtie2_outdir ${SGE_O_WORKDIR}/inter_Bowtie2_rRNA/"${sample}" \
+	--STAR_outdir ${SGE_O_WORKDIR}/results_STAR/"${sample}" \
+	--RSEM_ref /SAN/colcc/cellranger_references/GRCh38/RSEM-1.3.3/hg38 \
+	--RSEM_outdir ${SGE_O_WORKDIR}/results_RSEM/"${sample}"
+
+
+
+function finish {
+	rm -rf /scratch0/${SGE_O_LOGNAME}/${JOB_ID}
+}
+
+trap finish EXIT ERR INT TERM
+	
+
+
+##########
+echo ""
+echo "Job "${JOB_ID} "ends "$(date)
+
+
